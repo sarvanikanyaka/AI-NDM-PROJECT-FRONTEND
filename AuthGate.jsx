@@ -28,7 +28,7 @@ function AuthGate({ api, onAuthenticated }) {
       setMessage(response.data.message);
       setMode('otp');
     } catch (error) {
-      setMessage(formatApiError(error, 'Registration failed. Please try again.'));
+      setMessage(formatApiError(error, 'Registration failed. Please try again.', api.defaults.baseURL));
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ function AuthGate({ api, onAuthenticated }) {
       });
       onAuthenticated(response.data);
     } catch (error) {
-      setMessage(formatApiError(error, 'Login failed. Please try again.'));
+      setMessage(formatApiError(error, 'Login failed. Please try again.', api.defaults.baseURL));
     } finally {
       setLoading(false);
     }
@@ -74,7 +74,7 @@ function AuthGate({ api, onAuthenticated }) {
       setMessage('Email verified successfully. Login is now enabled.');
       setMode('login');
     } catch (error) {
-      setMessage(formatApiError(error, 'Verification failed. Please check the OTP and try again.'));
+      setMessage(formatApiError(error, 'Verification failed. Please check the OTP and try again.', api.defaults.baseURL));
     } finally {
       setLoading(false);
     }
@@ -205,12 +205,21 @@ function validateOtpForm(form) {
   return errors;
 }
 
-function formatApiError(error, fallback) {
+function formatApiError(error, fallback, apiBaseUrl = 'the backend API') {
   const detail = error.response?.data?.detail;
   if (Array.isArray(detail)) {
     return detail.map((item) => item.msg).join(' ');
   }
-  return detail || fallback;
+  if (detail) {
+    return detail;
+  }
+  if (error.code === 'ECONNABORTED') {
+    return `Backend request timed out. Check Railway backend logs and confirm ${apiBaseUrl}/health is online.`;
+  }
+  if (error.request && !error.response) {
+    return `Cannot reach backend API at ${apiBaseUrl}. Open ${apiBaseUrl}/health. If it works in browser, set backend CORS_ORIGIN_REGEX or CORS_ORIGINS for this frontend domain.`;
+  }
+  return `${fallback} ${error.message || ''}`.trim();
 }
 
 export default AuthGate;
